@@ -20,6 +20,7 @@ SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
 SPOTIFY_SEARCH_URL = "https://api.spotify.com/v1/search"
+SPOTIFY_AUDIO_FEATURES_URL = "https://api.spotify.com/v1/audio-features/"
 API_VERSION = "v1"
 SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
 
@@ -105,28 +106,36 @@ def appAuthorize(operation):
     headers = {"Authorization": "Basic {}".format(base64encoded)}
     post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
     post_data = json.loads(post_request.text)
-    url = "/search{}".format(post_data['access_token'])
+    url = "/" + operation + "/" + post_data['access_token']
+    
     return redirect(url)
 
-#supports searching tracks and albums
+#supports searching tracks
 
-@app.route("/search<access_token>", methods = ["GET", "POST"])
+@app.route("/search/<access_token>", methods = ["GET", "POST"])
 def search(access_token):
     content = []
     if request.form:
-        query = request.form.get('Search Names')
+        query = request.form.get('Search Tracks')
         headers = {"Authorization": "Bearer {}".format(access_token)}
-        code_payload = {"q":  query, "type": "album,track"}
+        code_payload = {"q":  query, "type": "track"}
         post_request = requests.get(SPOTIFY_SEARCH_URL, params=code_payload, headers = headers)
         response = json.loads(post_request.text)
-        for album in response['albums']['items']:
-            content.append((album['album_type'], album['name'],album['artists'][0]['name']))
+        
         for track in response['tracks']['items']:
-            content.append(('track', track['name'], track['artists'][0]['name']))
-                
+            content.append((track['name'], track['artists'][0]['name'], 
+                track['album']['name'], track['popularity'],track['id']))
     return render_template("search.html", access_token = access_token, content = content)
 
+@app.route("/audio-features/<Id>/<access_token>")
+def audio_features(Id, access_token):
+    headers = {"Authorization": "Bearer {}".format(access_token)}
+    url = SPOTIFY_AUDIO_FEATURES_URL + Id
+    post_request = requests.get(url, headers = headers)
+    response = json.loads(post_request.text)
 
+
+    return str(response)
 
 
 if __name__ == "__main__":

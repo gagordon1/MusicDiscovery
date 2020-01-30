@@ -9,21 +9,25 @@
     <h1> Search For Titles </h1>
     
     <form method="POST" action= "{{ url_for('search', access_token=access_token) }}">
-      <input type="text" name= "Search Names">
+      <input type="text" name= "Search Tracks">
       <input type="submit" value="Search">
     </form>
     
     <table border="2">
       <tr>
-        <th>Type</th>
         <th>Title</th>
-        <th>Author</th>
+        <th>Artist</th>
+        <th>Album</th>
+        <th>Popularity</th>
+        <th>Analysis</th>
       </tr>
       {% for i in content %}
         <tr>
           <td>{{ i[0] }}</td>
           <td>{{ i[1] }}</td>
           <td>{{ i[2] }}</td>
+          <td>{{ i[3] }}</td>
+          <td><a href="{{ url_for('audio_features', Id = i[4], access_token=access_token) }}">Audio Features</a></td>
         </tr>
       {% endfor %}
 
