@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>About Flask</title>
+  </head>
+  <body>
+    
+    <h1> Search For Titles </h1>
+    
+    <form method="POST" action= "{{ url_for('search', access_token=access_token) }}">
+      <input type="text" name= "Search Names">
+      <input type="submit" value="Search">
+    </form>
+    
+    <table border="2">
+      <tr>
+        <th>Type</th>
+        <th>Title</th>
+        <th>Author</th>
+      </tr>
+      {% for i in content %}
+        <tr>
+          <td>{{ i[0] }}</td>
+          <td>{{ i[1] }}</td>
+          <td>{{ i[2] }}</td>
+        </tr>
+      {% endfor %}
+
+    </table>
+  </body>
+</html>

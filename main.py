@@ -2,6 +2,8 @@ import json
 from flask import Flask, request, redirect, g, render_template
 import requests
 from urllib.parse import quote
+import base64
+
 
 # Authentication Steps, paramaters, and responses are defined at https://developer.spotify.com/web-api/authorization-guide/
 # Visit this url to see all the steps, parameters, and expected response.
@@ -17,6 +19,7 @@ CLIENT_SECRET = "e08fd9f28c23451f813b56dca6f31384"
 SPOTIFY_AUTH_URL = "https://accounts.spotify.com/authorize"
 SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token"
 SPOTIFY_API_BASE_URL = "https://api.spotify.com"
+SPOTIFY_SEARCH_URL = "https://api.spotify.com/v1/search"
 API_VERSION = "v1"
 SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
 
@@ -40,10 +43,11 @@ auth_query_parameters = {
 
 
 @app.route("/")
-def index():
+def authorize():
     # Auth Step 1: Authorization
     url_args = "&".join(["{}={}".format(key, quote(val)) for key, val in auth_query_parameters.items()])
     auth_url = "{}/?{}".format(SPOTIFY_AUTH_URL, url_args)
+    
     return redirect(auth_url)
 
 
@@ -69,10 +73,14 @@ def callback():
 
     
 
-    return redirect("/home{}".format(access_token))
+    return redirect("/directory{}".format(access_token))
 
-@app.route("/home<token>")
-def home(token):
+@app.route("/directory<token>")
+def directory(token):
+    return render_template("directory.html", token = token)
+
+@app.route("/myplaylists<token>")
+def myplaylists(token):
     # Auth Step 6: Use the access token to access Spotify API
     authorization_header = {"Authorization": "Bearer {}".format(token)}
     
@@ -88,6 +96,37 @@ def home(token):
     # Combine profile and playlist data to display
     display_arr = [profile_data] + playlist_data["items"]
     return render_template("index.html", sorted_array=display_arr)
+
+@app.route("/appAuthorize<operation>")
+def appAuthorize(operation):
+    code_payload = {"grant_type": "client_credentials"}
+    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
+    base64encoded = base64.b64encode(byte).decode('utf-8')
+    headers = {"Authorization": "Basic {}".format(base64encoded)}
+    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
+    post_data = json.loads(post_request.text)
+    url = "/search{}".format(post_data['access_token'])
+    return redirect(url)
+
+#supports searching tracks and albums
+
+@app.route("/search<access_token>", methods = ["GET", "POST"])
+def search(access_token):
+    content = []
+    if request.form:
+        query = request.form.get('Search Names')
+        headers = {"Authorization": "Bearer {}".format(access_token)}
+        code_payload = {"q":  query, "type": "album,track"}
+        post_request = requests.get(SPOTIFY_SEARCH_URL, params=code_payload, headers = headers)
+        response = json.loads(post_request.text)
+        for album in response['albums']['items']:
+            content.append((album['album_type'], album['name'],album['artists'][0]['name']))
+        for track in response['tracks']['items']:
+            content.append(('track', track['name'], track['artists'][0]['name']))
+                
+    return render_template("search.html", access_token = access_token, content = content)
+
+
 
 
 if __name__ == "__main__":
