@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>About Flask</title>
+  </head>
+  <body>
+    
+    <h1> {{"{}'s Playlists".format(display_name)}} </h1>
+    
+    
+    <table border="2">
+      <tr>
+        <th> Name </th>
+        <th> Length </th>
+        <th> Followers </th>
+        
+      </tr>
+      {% for i in playlist_names %}
+        <tr>
+          <td>{{ i }}</td>
+          <td><a href="{{ url_for('audio_features', Id = i[4], access_token=access_token) }}">Audio Features</a></td>
+        </tr>
+      {% endfor %}
+
+    </table>
+  </body>
+</html>

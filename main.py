@@ -50,6 +50,17 @@ def authorize():
     auth_url = "{}/?{}".format(SPOTIFY_AUTH_URL, url_args)
     
     return redirect(auth_url)
+@app.route("/appAuthorize<operation>")
+def appAuthorize(operation):
+    code_payload = {"grant_type": "client_credentials"}
+    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
+    base64encoded = base64.b64encode(byte).decode('utf-8')
+    headers = {"Authorization": "Basic {}".format(base64encoded)}
+    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
+    post_data = json.loads(post_request.text)
+    url = "/" + operation + "/" + post_data['access_token']
+    
+    return redirect(url)
 
 
 @app.route("/callback/q")
@@ -91,24 +102,16 @@ def myplaylists(token):
 
     # Get user playlist data
     playlist_api_endpoint = "{}/playlists".format(profile_data["href"])
-    playlists_response = requests.get(playlist_api_endpoint, headers=authorization_header)
+    code_payload = {"limit": 50}
+    playlists_response = requests.get(playlist_api_endpoint, params = code_payload, headers=authorization_header)
     playlist_data = json.loads(playlists_response.text)
 
     # Combine profile and playlist data to display
-    display_arr = [profile_data] + playlist_data["items"]
-    return render_template("index.html", sorted_array=display_arr)
+    display_arr = playlist_data["items"]
+    names = [i['name'] for i in display_arr]
 
-@app.route("/appAuthorize<operation>")
-def appAuthorize(operation):
-    code_payload = {"grant_type": "client_credentials"}
-    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
-    base64encoded = base64.b64encode(byte).decode('utf-8')
-    headers = {"Authorization": "Basic {}".format(base64encoded)}
-    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
-    post_data = json.loads(post_request.text)
-    url = "/" + operation + "/" + post_data['access_token']
-    
-    return redirect(url)
+    return render_template("playlists.html", playlist_names=names, 
+        display_name = profile_data['display_name'])
 
 #supports searching tracks
 
@@ -127,15 +130,13 @@ def search(access_token):
                 track['album']['name'], track['popularity'],track['id']))
     return render_template("search.html", access_token = access_token, content = content)
 
-@app.route("/audio-features/<Id>/<access_token>")
-def audio_features(Id, access_token):
+@app.route("/audio-features/<title>/<Id>/<access_token>")
+def audio_features(title, Id, access_token):
     headers = {"Authorization": "Bearer {}".format(access_token)}
     url = SPOTIFY_AUDIO_FEATURES_URL + Id
     post_request = requests.get(url, headers = headers)
     response = json.loads(post_request.text)
-
-
-    return str(response)
+    return render_template("audio_features.html", track_name = title, resp = response)
 
 
 if __name__ == "__main__":

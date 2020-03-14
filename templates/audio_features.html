@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title>About Flask</title>
+  </head>
+  <body>
+    
+    <h1> {{"{}'s Audio Features".format(track_name)}} </h1>
+    
+    
+    <table border="2">
+      <tr>
+        <th> Feature </th>
+        <th> Value </th>
+        
+      </tr>
+      {% for key in resp %}
+        <tr>
+          <td>{{ key }}</td>
+          <td>{{ resp[key] }}</td>}
+          
+        </tr>
+      {% endfor %}
+
+    </table>
+  </body>
+</html>
