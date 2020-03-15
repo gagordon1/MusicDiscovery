@@ -12,14 +12,12 @@
     <table border="2">
       <tr>
         <th> Name </th>
-        <th> Length </th>
-        <th> Followers </th>
-        
+        <th> Length </th>        
       </tr>
-      {% for i in playlist_names %}
+      {% for i in range(length)  %}
         <tr>
-          <td>{{ i }}</td>
-          <td><a href="{{ url_for('audio_features', Id = i[4], access_token=access_token) }}">Audio Features</a></td>
+          <td>{{ playlist_names[i] }}</td>
+          <td>{{ playlist_lengths[i] }}</td>
         </tr>
       {% endfor %}
 

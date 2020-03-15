@@ -3,6 +3,7 @@ from flask import Flask, request, redirect, g, render_template
 import requests
 from urllib.parse import quote
 import base64
+import pickle
 
 
 # Authentication Steps, paramaters, and responses are defined at https://developer.spotify.com/web-api/authorization-guide/
@@ -41,26 +42,24 @@ auth_query_parameters = {
     # "show_dialog": SHOW_DIALOG_str,
     "client_id": CLIENT_ID
 }
-
-
 @app.route("/")
+def home():
+    # Auth Step 1: Authorization
+    return render_template("home.html")
+
+#-------------------------USER DATA AUTHORIZATION-----------------------------------------
+
+@app.route("/authorize_gateway")
+def authorize_gateway():
+    # Auth Step 1: Authorization
+    return render_template("authorize_gate.html")
+
+@app.route("/authorize")
 def authorize():
     # Auth Step 1: Authorization
     url_args = "&".join(["{}={}".format(key, quote(val)) for key, val in auth_query_parameters.items()])
     auth_url = "{}/?{}".format(SPOTIFY_AUTH_URL, url_args)
-    
     return redirect(auth_url)
-@app.route("/appAuthorize<operation>")
-def appAuthorize(operation):
-    code_payload = {"grant_type": "client_credentials"}
-    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
-    base64encoded = base64.b64encode(byte).decode('utf-8')
-    headers = {"Authorization": "Basic {}".format(base64encoded)}
-    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
-    post_data = json.loads(post_request.text)
-    url = "/" + operation + "/" + post_data['access_token']
-    
-    return redirect(url)
 
 
 @app.route("/callback/q")
@@ -83,13 +82,64 @@ def callback():
     token_type = response_data["token_type"]
     expires_in = response_data["expires_in"]
 
-    
-
     return redirect("/directory{}".format(access_token))
 
 @app.route("/directory<token>")
 def directory(token):
     return render_template("directory.html", token = token)
+
+#-------------------------------Make and View Playlists---------------------------------------
+@app.route("/signIn", methods = ["GET", "POST"])
+@app.route("/signIn/<Message>", methods = ["GET", "POST"])
+def signIn(Message = ''):
+    if request.form:
+        un = request.form.get('Username')
+        pw = request.form.get('Password')
+        un_pw = pickle.load( open( "databases/un_pw", "rb" ) )
+        if un in un_pw:
+            if un_pw[un]['Password'] == pw:
+                return redirect('/Library/{}'.format(un))
+            else:
+                return render_template("sign_in.html", error = 'Incorrect Password')
+        else:
+            return render_template("sign_in.html", error = 'Username is not in records')
+    return render_template("sign_in.html", error = Message)
+
+@app.route("/createAccount/<Message>", methods = ["GET", "POST"])
+@app.route("/createAccount", methods = ["GET", "POST"])
+def createAccount(Message = ''):
+    if request.form:
+        em = request.form.get('E-mail')
+        un = request.form.get('Username')
+        pw = request.form.get('Password')
+        cpw = request.form.get('ConfPassword')
+        if cpw == pw:
+            un_pw = pickle.load( open( "databases/un_pw", "rb" ) )
+            if un in un_pw:
+                message = 'Username already exists. Try something else.'
+                return redirect("/createAccount/{}".format(message))
+            else:
+                un_pw[un] = {'Password': pw, 'E-mail': em}
+                pickle.dump(un_pw, open( "databases/un_pw", "wb" ))
+                message = 'Account Created! Please sign in.'
+                return redirect("/signIn/{}".format(message))
+        else:
+            return render_template("create_account.html", error = 'Passwords did not match. Try again')   
+    return render_template("create_account.html", error = Message)
+
+
+@app.route("/viewPlaylist<playlist>")
+def viewPlaylist(playlist):
+    # A page where given a playlist, users are able to edit and play music\
+    pass
+
+@app.route("/Library/<Username>")
+def Library(Username):
+    # a page where all playlists are shown 
+    return "{}'s Library".format(Username)
+
+
+#-------------------------------USER DATA APPLICATIONS----------------------------------------
 
 @app.route("/myplaylists<token>")
 def myplaylists(token):
@@ -109,11 +159,24 @@ def myplaylists(token):
     # Combine profile and playlist data to display
     display_arr = playlist_data["items"]
     names = [i['name'] for i in display_arr]
+    lengths =[i['tracks']['total'] for i in display_arr]
 
-    return render_template("playlists.html", playlist_names=names, 
+    return render_template("playlists.html", length = len(names), playlist_names=names, playlist_lengths = lengths, 
         display_name = profile_data['display_name'])
 
 #supports searching tracks
+#--------------------------------SEARCH MODULE----------------------------------
+
+@app.route("/appAuthorizeSearch")
+def appAuthorizeSearch():
+    code_payload = {"grant_type": "client_credentials"}
+    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
+    base64encoded = base64.b64encode(byte).decode('utf-8')
+    headers = {"Authorization": "Basic {}".format(base64encoded)}
+    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
+    post_data = json.loads(post_request.text)
+    url = "/search/" + post_data['access_token']
+    return redirect(url)
 
 @app.route("/search/<access_token>", methods = ["GET", "POST"])
 def search(access_token):
@@ -130,6 +193,7 @@ def search(access_token):
                 track['album']['name'], track['popularity'],track['id']))
     return render_template("search.html", access_token = access_token, content = content)
 
+
 @app.route("/audio-features/<title>/<Id>/<access_token>")
 def audio_features(title, Id, access_token):
     headers = {"Authorization": "Bearer {}".format(access_token)}
@@ -141,3 +205,5 @@ def audio_features(title, Id, access_token):
 
 if __name__ == "__main__":
     app.run(debug=True, port=PORT)
+
+

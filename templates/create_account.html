@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    
+    <h1> Create Account </h1>
+    
+    <form method="POST" action= "{{ url_for('createAccount') }}">
+      E-mail: <input type="text" name= "E-mail"> <br> 
+      Username: <input type="text" name= "Username"> <br> 
+      Password: <input type="password" name= "Password"> <br>
+      Confirm Password: <input type="password" name= "ConfPassword"> <br>
+      <input type="submit" value="Create Account">
+    </form> <br>
+    {{ error }}
+  </body>
+</html>
