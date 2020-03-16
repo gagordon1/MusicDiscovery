@@ -3,7 +3,8 @@ from flask import Flask, request, redirect, g, render_template
 import requests
 from urllib.parse import quote
 import base64
-import pickle
+from playlistDB import PlaylistDB
+from accountDB import AccountDB
 
 
 # Authentication Steps, paramaters, and responses are defined at https://developer.spotify.com/web-api/authorization-guide/
@@ -95,9 +96,9 @@ def signIn(Message = ''):
     if request.form:
         un = request.form.get('Username')
         pw = request.form.get('Password')
-        un_pw = pickle.load( open( "databases/un_pw", "rb" ) )
-        if un in un_pw:
-            if un_pw[un]['Password'] == pw:
+        aDB = AccountDB()
+        if un in aDB.getUsernames():
+            if aDB.correctPassword(un, pw):
                 return redirect('/Library/{}'.format(un))
             else:
                 return render_template("sign_in.html", error = 'Incorrect Password')
@@ -113,14 +114,14 @@ def createAccount(Message = ''):
         un = request.form.get('Username')
         pw = request.form.get('Password')
         cpw = request.form.get('ConfPassword')
+        aDB = AccountDB()
         if cpw == pw:
-            un_pw = pickle.load( open( "databases/un_pw", "rb" ) )
+            un_pw = aDB.getUsernames()
             if un in un_pw:
                 message = 'Username already exists. Try something else.'
                 return redirect("/createAccount/{}".format(message))
             else:
-                un_pw[un] = {'Password': pw, 'E-mail': em}
-                pickle.dump(un_pw, open( "databases/un_pw", "wb" ))
+                aDB.addUser(un, pw, em)
                 message = 'Account Created! Please sign in.'
                 return redirect("/signIn/{}".format(message))
         else:
@@ -130,14 +131,28 @@ def createAccount(Message = ''):
 
 @app.route("/viewPlaylist<playlist>")
 def viewPlaylist(playlist):
-    # A page where given a playlist, users are able to edit and play music\
-    pass
+    # A page where given a playlist, users are able to edit and play music
+    pDB = PlaylistDB()
+    tr = pDB.get_tracks(playlist)
+    n = pDB.get_name(playlist)
 
-@app.route("/Library/<Username>")
-def Library(Username):
-    # a page where all playlists are shown 
-    return "{}'s Library".format(Username)
+    return render_template("playlistView.html", tracks = tr, title = n)
+    
 
+@app.route("/Library/<Username>/<Message>", methods = ["POST", "GET"])
+@app.route("/Library/<Username>", methods = ["POST", "GET"])
+def Library(Username, Message = ''):
+    # a page where all playlists are shown. If user clicks create playlist, a new playlist is added as a unique integer.
+
+    pDB = PlaylistDB()
+    if request.form:
+        name = request.form.get('Name')
+        Playlists = pDB.getPlaylists(Username)
+        if name in Playlists:
+            Message = 'Name already used! Try something else.'
+        else:
+            pDB.create_playlist(Username, name)
+    return render_template("Library.html", playlists = pDB.getHtmlPlaylists(Username), username = Username, error = Message)
 
 #-------------------------------USER DATA APPLICATIONS----------------------------------------
 

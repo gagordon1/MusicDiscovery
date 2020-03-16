@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <body>Playlists</h1>
+    <table border="2">
+      <tr>
+        <th>Playlist</th>
+      </tr>
+      {% for i in playlists %}
+        <tr>
+          <td><a href="{{ url_for('viewPlaylist', playlist = i[0]) }}"> {{ i[1] }} </a></td> 
+        </tr>
+      {% endfor %}
+    </table>
+
+    Create a new Playlist:
+   	<form method="POST" action= "{{ url_for('Library', Username=username) }}">
+      <input type="text" name="Name">
+      <input type="submit" value="Create Playlist">
+    </form> <br>
+    {{ error }}
+  	
+  </body>
+
+  
+</html>
