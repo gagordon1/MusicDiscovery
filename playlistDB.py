@@ -1,4 +1,5 @@
 import pickle
+from SpotifyApiHandler import SpotifyApiHandler
 
 class PlaylistDB:
 	def create_playlist(self, username, title):
@@ -17,10 +18,20 @@ class PlaylistDB:
 
 	def get_tracks(self, playlist):
 		'''
-		given a unique playlist ID, return associated tracks as a list
+		given a unique playlist ID, return associated tracks as a list of 
+		tuples of the form (title, artists (list), album, uri)
 		'''
 		pl_info = pickle.load(open( "databases/pl_info", "rb" ))
-		return pl_info[int(playlist)]['Tracks']
+		final = pl_info[int(playlist)]['Tracks']
+		new = []
+		SAH = SpotifyApiHandler()
+		for URI in final:
+			track = SAH.get_track(URI, uri = True)
+			artists = ''
+			for i in range(len(track['artists'])):
+				artists += track['artists'][i]['name'] + ', ' 
+			new.append((track['name'], artists[:-2], track['album']['name'], track['uri']))
+		return new
 
 	def get_name(self, playlist):
 		'''
@@ -37,10 +48,11 @@ class PlaylistDB:
 
 	def add_track(self, playlist, track):
 		'''
-		given a playlist and track, adds track to the playlist
+		given a playlist and track, adds track to the playlist as a tuple of the form
+		(title, artist, album, uri)
 		'''
 		pl_info = pickle.load(open( "databases/pl_info", "rb" ))
-		pl_info[playlist]['Tracks'].append(track)
+		pl_info[int(playlist)]['Tracks'].append(track)
 		pickle.dump(pl_info, open( "databases/pl_info", "wb" ))
 
 	def delete_track(self, playlist, track):
@@ -69,6 +81,5 @@ class PlaylistDB:
 		un_pl = pickle.load(open( "databases/un_pl", "rb" ))
 		return [pl_info[i]['Name'] for i in un_pl[username]]
 
-pDB = PlaylistDB()
 
 

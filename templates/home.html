@@ -2,8 +2,13 @@
 <doctype html>
 <html lang="en" dir="ltr">
   <body>Home</h1>
-    <li><a href="{{ url_for('authorize_gateway')}}" >Authorize</a></li>
-    <li><a href="{{ '/appAuthorizeSearch' }}">Search</a></li>
+    <li><a href="{{ url_for('authorize_gateway')}}" >Authorize</a></li> (Authorize to view spotify playlists and add to your app playlists)
+    <li><a href="{{ '/search' }}">Search</a></li>
+    <li><a href="{{ '/myplaylists' }}">My Spotify Playlists</a></li>
     <li><a href="{{ '/signIn' }}">Sign In</a></li> Sign in to edit and view your playlists
+    <form method="POST" action= "{{ url_for('home') }}">
+      <input type="text" name= "Play Track">
+      <input type="submit" value="Search">
+    </form>
   </body>
 </html>

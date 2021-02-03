@@ -2,9 +2,10 @@ import json
 from flask import Flask, request, redirect, g, render_template
 import requests
 from urllib.parse import quote
-import base64
 from playlistDB import PlaylistDB
 from accountDB import AccountDB
+from SpotifyAuthorization import AppAuthorize, UserAuthorize
+from SpotifyApiHandler import SpotifyApiHandler
 
 
 # Authentication Steps, paramaters, and responses are defined at https://developer.spotify.com/web-api/authorization-guide/
@@ -30,7 +31,7 @@ SPOTIFY_API_URL = "{}/{}".format(SPOTIFY_API_BASE_URL, API_VERSION)
 CLIENT_SIDE_URL = "http://127.0.0.1"
 PORT = 8080
 REDIRECT_URI = "{}:{}/callback/q".format(CLIENT_SIDE_URL, PORT)
-SCOPE = "playlist-modify-public playlist-modify-private"
+SCOPE = "streaming user-read-email user-read-private playlist-modify-public playlist-modify-private"
 STATE = ""
 SHOW_DIALOG_bool = True
 SHOW_DIALOG_str = str(SHOW_DIALOG_bool).lower()
@@ -43,13 +44,16 @@ auth_query_parameters = {
     # "show_dialog": SHOW_DIALOG_str,
     "client_id": CLIENT_ID
 }
-@app.route("/")
+
+@app.route("/", methods = ["GET", "POST"])
 def home():
     # Auth Step 1: Authorization
+    if request.form:
+        uri = request.form.get("Play Track")
+        return redirect('play/{}'.format(uri))
     return render_template("home.html")
 
 #-------------------------USER DATA AUTHORIZATION-----------------------------------------
-
 @app.route("/authorize_gateway")
 def authorize_gateway():
     # Auth Step 1: Authorization
@@ -62,11 +66,12 @@ def authorize():
     auth_url = "{}/?{}".format(SPOTIFY_AUTH_URL, url_args)
     return redirect(auth_url)
 
-
 @app.route("/callback/q")
 def callback():
     # Auth Step 4: Requests refresh and access tokens
+
     auth_token = request.args['code']
+
     code_payload = {
         "grant_type": "authorization_code",
         "code": str(auth_token),
@@ -82,12 +87,9 @@ def callback():
     refresh_token = response_data["refresh_token"]
     token_type = response_data["token_type"]
     expires_in = response_data["expires_in"]
-
-    return redirect("/directory{}".format(access_token))
-
-@app.route("/directory<token>")
-def directory(token):
-    return render_template("directory.html", token = token)
+    UA = UserAuthorize()
+    UA.setTokens(access_token, refresh_token)
+    return redirect("/")
 
 #-------------------------------Make and View Playlists---------------------------------------
 @app.route("/signIn", methods = ["GET", "POST"])
@@ -128,17 +130,28 @@ def createAccount(Message = ''):
             return render_template("create_account.html", error = 'Passwords did not match. Try again')   
     return render_template("create_account.html", error = Message)
 
-
-@app.route("/viewPlaylist<playlist>")
-def viewPlaylist(playlist):
+@app.route("/viewPlaylist/<playlist>/<addTrack>", methods = ["GET", "POST"])
+@app.route("/viewPlaylist/<playlist>", methods = ["GET", "POST"])
+def viewPlaylist(playlist, addTrack = None):
     # A page where given a playlist, users are able to edit and play music
     pDB = PlaylistDB()
     tr = pDB.get_tracks(playlist)
     n = pDB.get_name(playlist)
+    content = []
+    if addTrack != None:
+        pDB.add_track(playlist, addTrack)
+        tr = pDB.get_tracks(playlist)
+    elif request.form:
+        SAH = SpotifyApiHandler()
+        que = request.form.get('Add Tracks')
+        types = ['track']
+        response = SAH.query(que, types) 
+        for track in response['tracks']['items']:
+            content.append((track['name'], track['artists'][0]['name'], 
+                track['album']['name'], track['uri'] ))
+    return render_template("playlistView.html", tracks = tr, title = n, playlist = playlist, content = content)
 
-    return render_template("playlistView.html", tracks = tr, title = n)
     
-
 @app.route("/Library/<Username>/<Message>", methods = ["POST", "GET"])
 @app.route("/Library/<Username>", methods = ["POST", "GET"])
 def Library(Username, Message = ''):
@@ -155,10 +168,11 @@ def Library(Username, Message = ''):
     return render_template("Library.html", playlists = pDB.getHtmlPlaylists(Username), username = Username, error = Message)
 
 #-------------------------------USER DATA APPLICATIONS----------------------------------------
-
-@app.route("/myplaylists<token>")
-def myplaylists(token):
+@app.route("/myplaylists")
+def myplaylists():
     # Auth Step 6: Use the access token to access Spotify API
+    UA = UserAuthorize()
+    token = UA.getTokens()[1]
     authorization_header = {"Authorization": "Bearer {}".format(token)}
     
     user_profile_api_endpoint = "{}/me".format(SPOTIFY_API_URL)
@@ -179,38 +193,32 @@ def myplaylists(token):
     return render_template("playlists.html", length = len(names), playlist_names=names, playlist_lengths = lengths, 
         display_name = profile_data['display_name'])
 
+@app.route("/play/<uri>")
+def play(uri):
+    UA = UserAuthorize()
+    access_token = UA.refreshTokens()
+    return render_template('fire.html', access_token = access_token, URI = uri)
+
 #supports searching tracks
 #--------------------------------SEARCH MODULE----------------------------------
 
-@app.route("/appAuthorizeSearch")
-def appAuthorizeSearch():
-    code_payload = {"grant_type": "client_credentials"}
-    byte = "{}:{}".format(CLIENT_ID, CLIENT_SECRET).encode('utf-8')
-    base64encoded = base64.b64encode(byte).decode('utf-8')
-    headers = {"Authorization": "Basic {}".format(base64encoded)}
-    post_request = requests.post(SPOTIFY_TOKEN_URL, data=code_payload, headers = headers)
-    post_data = json.loads(post_request.text)
-    url = "/search/" + post_data['access_token']
-    return redirect(url)
-
-@app.route("/search/<access_token>", methods = ["GET", "POST"])
-def search(access_token):
+@app.route("/search", methods = ["GET", "POST"])
+def search():
     content = []
-    if request.form:
-        query = request.form.get('Search Tracks')
-        headers = {"Authorization": "Bearer {}".format(access_token)}
-        code_payload = {"q":  query, "type": "track"}
-        post_request = requests.get(SPOTIFY_SEARCH_URL, params=code_payload, headers = headers)
-        response = json.loads(post_request.text)
-        
+    access_token = None
+    if request.form: 
+        quer = request.form.get('Search Tracks')
+        SAH = SpotifyApiHandler()
+        response = SAH.query(quer, ['track'])
         for track in response['tracks']['items']:
             content.append((track['name'], track['artists'][0]['name'], 
                 track['album']['name'], track['popularity'],track['id']))
-    return render_template("search.html", access_token = access_token, content = content)
+    return render_template("search.html", content = content)
 
-
-@app.route("/audio-features/<title>/<Id>/<access_token>")
-def audio_features(title, Id, access_token):
+@app.route("/audio-features/<title>/<Id>")
+def audio_features(title, Id):
+    AA = AppAuthorize()
+    access_token = AA.getAppToken()
     headers = {"Authorization": "Bearer {}".format(access_token)}
     url = SPOTIFY_AUDIO_FEATURES_URL + Id
     post_request = requests.get(url, headers = headers)

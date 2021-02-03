@@ -27,7 +27,7 @@
           <td>{{ i[1] }}</td>
           <td>{{ i[2] }}</td>
           <td>{{ i[3] }}</td>
-          <td><a href="{{ url_for('audio_features', title = i[0], Id = i[4], access_token=access_token) }}">Audio Features</a></td>
+          <td><a href="{{ url_for('audio_features', title = i[0], Id = i[4]) }}">Audio Features</a></td>
         </tr>
       {% endfor %}
 
