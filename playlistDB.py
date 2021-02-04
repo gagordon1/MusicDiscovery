@@ -22,7 +22,7 @@ class PlaylistDB:
 		tuples of the form (title, artists (list), album, uri)
 		'''
 		pl_info = pickle.load(open( "databases/pl_info", "rb" ))
-		final = pl_info[int(playlist)]['Tracks']
+		final = pl_info[playlist]['Tracks']
 		new = []
 		SAH = SpotifyApiHandler()
 		for URI in final:

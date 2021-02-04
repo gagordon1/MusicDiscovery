@@ -16,7 +16,7 @@
       </tr>
       {% for i in range(length)  %}
         <tr>
-          <td>{{ playlist_names[i] }}</td>
+          <td><a href= "{{ url_for('viewPlaylist', playlist = playlist_names[i], playlistId = playlist_ids[i], token = token) }}">{{ "{}".format(playlist_names[i])}}</a></td>
           <td>{{ playlist_lengths[i] }}</td>
         </tr>
       {% endfor %}

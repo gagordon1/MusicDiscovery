@@ -45,6 +45,66 @@ auth_query_parameters = {
     "client_id": CLIENT_ID
 }
 
+keyMap = {
+    (0, 0) : "Cm",
+    (0, 1) : "C",
+    (1, 0) : "C#m",
+    (1, 1) : "C#",
+    (2, 0) : "Dm",
+    (2, 1) : "D",
+    (3, 0) : "D#m",
+    (3, 1) : "D#",
+    (4, 0) : "Em",
+    (4, 1) : "E",
+    (5, 0) : "Fm",
+    (5, 1) : "F",
+    (6, 0) : "F#m",
+    (6, 1) : "F#",
+    (7, 0) : "Gm",
+    (7, 1) : "G",
+    (8, 0) : "G#m",
+    (8, 1) : "G#",
+    (9, 0) : "Am",
+    (9, 1) : "A",
+    (10, 0) : "A#m",
+    (10, 1) : "A#",
+    (11, 0) : "Bm",
+    (11, 1) : "B",
+
+
+}
+
+keyValues = {
+    "Cm" : 0,
+    "C" : 1,
+    "C#m" : 2,
+    "C#" : 3,
+    "Dm" : 4,
+    "D" :5,
+    "D#m" : 6,
+    "D#": 7,
+    "Em" : 8,
+    "E": 9,
+    "Fm": 10,
+    "F" : 11,
+    "F#m" : 12,
+    "F#" : 13,
+    "Gm" : 14,
+    "G" :15,
+    "G#m" : 16,
+    "G#" :17,
+    "Am" :18,
+    "A" : 19,
+    "A#m" :20,
+    "A#" :21,
+    "Bm" : 22,
+    "B" :23,
+
+
+}
+
+
+
 @app.route("/", methods = ["GET", "POST"])
 def home():
     # Auth Step 1: Authorization
@@ -108,6 +168,7 @@ def signIn(Message = ''):
             return render_template("sign_in.html", error = 'Username is not in records')
     return render_template("sign_in.html", error = Message)
 
+
 @app.route("/createAccount/<Message>", methods = ["GET", "POST"])
 @app.route("/createAccount", methods = ["GET", "POST"])
 def createAccount(Message = ''):
@@ -130,26 +191,71 @@ def createAccount(Message = ''):
             return render_template("create_account.html", error = 'Passwords did not match. Try again')   
     return render_template("create_account.html", error = Message)
 
-@app.route("/viewPlaylist/<playlist>/<addTrack>", methods = ["GET", "POST"])
-@app.route("/viewPlaylist/<playlist>", methods = ["GET", "POST"])
-def viewPlaylist(playlist, addTrack = None):
+@app.route("/viewPlaylist/<playlist>/<playlistId>/<token>/<sortBy>", methods = ["GET", "POST"])
+@app.route("/viewPlaylist/<playlist>/<playlistId>/<token>", methods = ["GET", "POST"])
+def viewPlaylist(playlist, playlistId, token, sortBy = None):
+
     # A page where given a playlist, users are able to edit and play music
-    pDB = PlaylistDB()
-    tr = pDB.get_tracks(playlist)
-    n = pDB.get_name(playlist)
-    content = []
-    if addTrack != None:
-        pDB.add_track(playlist, addTrack)
-        tr = pDB.get_tracks(playlist)
-    elif request.form:
-        SAH = SpotifyApiHandler()
-        que = request.form.get('Add Tracks')
-        types = ['track']
-        response = SAH.query(que, types) 
-        for track in response['tracks']['items']:
-            content.append((track['name'], track['artists'][0]['name'], 
-                track['album']['name'], track['uri'] ))
-    return render_template("playlistView.html", tracks = tr, title = n, playlist = playlist, content = content)
+    authorization_header = {"Authorization": "Bearer {}".format(token)}
+    
+    user_profile_api_endpoint = "{}/me".format(SPOTIFY_API_URL)
+    profile_response = requests.get(user_profile_api_endpoint, headers=authorization_header)
+    profile_data = json.loads(profile_response.text)
+
+    # Get user playlist data
+    playlist_api_endpoint = "{}/playlists/{}".format(profile_data["href"], playlistId)
+    code_payload = {"limit": 200}
+    playlists_response = requests.get(playlist_api_endpoint, params = code_payload, headers=authorization_header)
+    playlist_data = json.loads(playlists_response.text)
+    items = playlist_data["tracks"]["items"]
+    tr = []
+
+    AA = AppAuthorize()
+    access_token = AA.getAppToken()
+    
+    for i in items:
+        name = i["track"]["name"]
+        if len(i["track"]["album"]["artists"]) >0 :
+            artist = i["track"]["album"]["artists"][0]["name"]
+        else:
+            continue
+        album = i["track"]["album"]["name"]
+        track_id = i["track"]["id"]
+        popularity = i["track"]["popularity"]
+        
+        headers = {"Authorization": "Bearer {}".format(access_token)}
+        url = SPOTIFY_AUDIO_FEATURES_URL + track_id
+        post_request = requests.get(url, headers = headers)
+        response = json.loads(post_request.text)
+
+
+        key = response["key"]
+        mode = response["mode"]
+
+        stringKey = keyMap[(key,mode)]
+        BPM = response["tempo"]
+        danceability = response["danceability"]
+
+        tri = (name, artist, album, stringKey, BPM, danceability, popularity)
+        tr.append(tri)
+
+    keyIndex = 3
+    bpmIndex = 4
+    danceabilityIndex = 5
+    popularityIndex = 6
+
+
+    if sortBy == "Key":
+        #SORT tr
+        tr = parameterSort(tr, keyIndex, isKey = True)
+    elif sortBy == "BPM":
+        tr = parameterSort(tr, bpmIndex)
+    elif sortBy == "Danceability":
+        tr = parameterSort(tr, danceabilityIndex)
+    elif sortBy == "Popularity":
+        tr = parameterSort(tr, popularityIndex)
+
+    return render_template("playlistView.html", tracks = tr, playlist = playlist, playlistId = playlistId, token = token)
 
     
 @app.route("/Library/<Username>/<Message>", methods = ["POST", "GET"])
@@ -188,10 +294,10 @@ def myplaylists():
     # Combine profile and playlist data to display
     display_arr = playlist_data["items"]
     names = [i['name'] for i in display_arr]
+    IDs = [i['uri'][17:] for i in display_arr]
     lengths =[i['tracks']['total'] for i in display_arr]
-
     return render_template("playlists.html", length = len(names), playlist_names=names, playlist_lengths = lengths, 
-        display_name = profile_data['display_name'])
+        display_name = profile_data['display_name'], playlist_ids = IDs, token = token)
 
 @app.route("/play/<uri>")
 def play(uri):
@@ -224,6 +330,31 @@ def audio_features(title, Id):
     post_request = requests.get(url, headers = headers)
     response = json.loads(post_request.text)
     return render_template("audio_features.html", track_name = title, resp = response)
+
+
+#returns the tracks sorted on the specified index
+#tracks is a list of tuples
+#index is an integer 0-len(tracks[0]) that shows which variable to sort on
+def parameterSort(tracks, index, isKey = False):
+    final = []
+    while tracks != []:
+        highest = 0
+        highest_track = None
+        for track in tracks:
+
+            if isKey:
+                if keyValues[track[index]] >= highest:
+                    highest = keyValues[track[index]]
+                    highest_track = track
+
+
+            elif track[index] >= highest:
+                highest = track[index]
+                highest_track = track
+        tracks.remove(highest_track)
+        final.append(highest_track)
+    return final
+
 
 
 if __name__ == "__main__":

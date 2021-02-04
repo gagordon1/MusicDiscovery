@@ -7,7 +7,19 @@
         <th>Title</th>
         <th>Artist</th>
         <th>Album</th>
-        <th>URI</th>
+        <th>
+          <a href= "{{ url_for('viewPlaylist', playlist = playlist, playlistId = playlistId, token = token, sortBy = 'Key') }}"> Key</a>
+        </th>
+        <th>
+          <a href= "{{ url_for('viewPlaylist', playlist = playlist, playlistId = playlistId, token = token, sortBy = 'BPM') }}"> BPM</a>
+        </th>
+        <th>
+          <a href= "{{ url_for('viewPlaylist', playlist = playlist, playlistId = playlistId, token = token, sortBy = 'Danceability') }}"> Danceability</a>
+        </th>
+        <th>
+          <a href= "{{ url_for('viewPlaylist', playlist = playlist, playlistId = playlistId, token = token, sortBy = 'Popularity') }}"> Popularity</a>
+        </th>
+
       </tr>
       {% for t in tracks %}
         <tr>
@@ -15,37 +27,12 @@
           <td>{{ t[1] }}</td> 
           <td>{{ t[2] }}</td> 
           <td>{{ t[3] }}</td> 
+          <td>{{ t[4] }}</td> 
+          <td>{{ t[5] }}</td> 
+          <td>{{ t[6] }}</td> 
         </tr>
       {% endfor %}
     </table>
   </body>
- 	--------------------------ADD TRACKS ----------------------------- <br>
-  	<form method="POST" action= "{{ url_for('viewPlaylist', playlist=playlist) }}">
-      <input type="text" name= "Add Tracks">
-      <input type="submit" value="Search">
-    </form>
-    
-    <table border="2">
-      <tr>
-        <th>Title</th>
-        <th>Artist</th>
-        <th>Album</th>
-      </tr>
-      {% for i in content %}
-        <tr>
-          <td>{{ i[0] }}</td>
-          <td>{{ i[1] }}</td>
-          <td>{{ i[2] }}</td>
-          <td> 
-          	<form method="POST" action= "{{ url_for('viewPlaylist', playlist=playlist, addTrack = i[3]) }}">
-      				<input type="submit" value="Add To Playlist">
-    		</form>
-		  </td>
-
-
-        </tr>
-      {% endfor %}
-
-    </table>
   
 </html>
