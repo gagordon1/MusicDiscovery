@@ -203,18 +203,33 @@ def viewPlaylist(playlist, playlistId, token, sortBy = None):
     profile_data = json.loads(profile_response.text)
 
     # Get user playlist data
-    playlist_api_endpoint = "{}/playlists/{}".format(profile_data["href"], playlistId)
-    code_payload = {"limit": 200}
-    playlists_response = requests.get(playlist_api_endpoint, params = code_payload, headers=authorization_header)
-    playlist_data = json.loads(playlists_response.text)
-    items = playlist_data["tracks"]["items"]
+    playlist_api_endpoint = "{}/playlists/{}/tracks".format(profile_data["href"], playlistId)
+    item_length = 1
+    track_index = 0
+    limit = 100
+    
+    items = []
+
+    
+    while (item_length != 0):
+        code_payload = {"offset": track_index, "limit": limit}
+        playlists_response = requests.get(playlist_api_endpoint, params = code_payload, headers=authorization_header)
+
+        playlist_data = json.loads(playlists_response.text)
+        it = playlist_data["items"]
+        items.extend(it)
+        item_length = len(it)
+        track_index += 100
+
+
     tr = []
 
     AA = AppAuthorize()
     access_token = AA.getAppToken()
-    
+
     for i in items:
         name = i["track"]["name"]
+        print(name)
         if len(i["track"]["album"]["artists"]) >0 :
             artist = i["track"]["album"]["artists"][0]["name"]
         else:
@@ -226,18 +241,19 @@ def viewPlaylist(playlist, playlistId, token, sortBy = None):
         headers = {"Authorization": "Bearer {}".format(access_token)}
         url = SPOTIFY_AUDIO_FEATURES_URL + track_id
         post_request = requests.get(url, headers = headers)
-        response = json.loads(post_request.text)
+        if post_request.status_code == 200:
+            response = json.loads(post_request.text)
 
 
-        key = response["key"]
-        mode = response["mode"]
+            key = response["key"]
+            mode = response["mode"]
 
-        stringKey = keyMap[(key,mode)]
-        BPM = response["tempo"]
-        danceability = response["danceability"]
+            stringKey = keyMap[(key,mode)]
+            BPM = response["tempo"]
+            danceability = response["danceability"]
 
-        tri = (name, artist, album, stringKey, BPM, danceability, popularity)
-        tr.append(tri)
+            tri = (name, artist, album, stringKey, BPM, danceability, popularity)
+            tr.append(tri)
 
     keyIndex = 3
     bpmIndex = 4
