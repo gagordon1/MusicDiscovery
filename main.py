@@ -270,6 +270,8 @@ def viewPlaylist(playlist, playlistId, token, sortBy = None):
         tr = parameterSort(tr, danceabilityIndex)
     elif sortBy == "Popularity":
         tr = parameterSort(tr, popularityIndex)
+    else:
+        tr = parameterSort(tr, keyIndex, isKey = True)
 
     return render_template("playlistView.html", tracks = tr, playlist = playlist, playlistId = playlistId, token = token)
 
