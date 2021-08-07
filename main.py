@@ -228,32 +228,35 @@ def viewPlaylist(playlist, playlistId, token, sortBy = None):
     access_token = AA.getAppToken()
 
     for i in items:
-        name = i["track"]["name"]
-        print(name)
-        if len(i["track"]["album"]["artists"]) >0 :
-            artist = i["track"]["album"]["artists"][0]["name"]
-        else:
-            continue
-        album = i["track"]["album"]["name"]
-        track_id = i["track"]["id"]
-        popularity = i["track"]["popularity"]
-        
-        headers = {"Authorization": "Bearer {}".format(access_token)}
-        url = SPOTIFY_AUDIO_FEATURES_URL + track_id
-        post_request = requests.get(url, headers = headers)
-        if post_request.status_code == 200:
-            response = json.loads(post_request.text)
+        try:
+            name = i["track"]["name"]
+            print(name)
+            if len(i["track"]["album"]["artists"]) >0 :
+                artist = i["track"]["album"]["artists"][0]["name"]
+            else:
+                continue
+            album = i["track"]["album"]["name"]
+            track_id = i["track"]["id"]
+            popularity = i["track"]["popularity"]
+            
+            headers = {"Authorization": "Bearer {}".format(access_token)}
+            url = SPOTIFY_AUDIO_FEATURES_URL + track_id
+            post_request = requests.get(url, headers = headers)
+            if post_request.status_code == 200:
+                response = json.loads(post_request.text)
 
 
-            key = response["key"]
-            mode = response["mode"]
+                key = response["key"]
+                mode = response["mode"]
 
-            stringKey = keyMap[(key,mode)]
-            BPM = response["tempo"]
-            danceability = response["danceability"]
+                stringKey = keyMap[(key,mode)]
+                BPM = response["tempo"]
+                danceability = response["danceability"]
 
-            tri = (name, artist, album, stringKey, BPM, danceability, popularity)
-            tr.append(tri)
+                tri = (name, artist, album, stringKey, BPM, danceability, popularity)
+                tr.append(tri)
+        except:
+            print("issue with track {}".format(i))
 
     keyIndex = 3
     bpmIndex = 4
